@@ -74,7 +74,7 @@ module Components =
 
     let fgXTerm n = {
         openTag = Some (enc.code (sprintf "38;5;%im" n))
-        closeTag = None // Some (enc.code "0m")
+        closeTag = Some (enc.code "0m")
     }
 
     let fg r g b = fgXTerm (Color.convToXTerm r g b)
@@ -86,12 +86,25 @@ module Components =
 
     let bg r g b = bgXTerm (Color.convToXTerm r g b)
 
-    let div attrs (contents:byte [] list) =
-        let openings = attrs |> Array.ofList |> Array.choose (fun a -> a.openTag) 
-        let closings = attrs |> Array.ofList |> Array.choose (fun a -> a.closeTag) |> Array.rev        
+    let bold = {
+        openTag = Some (enc.code (sprintf "1m"))
+        closeTag = Some (enc.code "0m")
+    }
+
+    /// unformatted space
+    let space = strToBytes " "
+
+    let cr = strToBytes "\n"
+
+    let uline = {
+        openTag = Some (enc.code (sprintf "4m"))
+        closeTag = Some (enc.code "0m")
+    }
+
+    let div (contents:byte [] list) =
         Array.concat [|
-            openings; (contents |> Array.ofList); closings
-        |] |> Array.concat
+           (contents |> Array.ofList)
+        |] |> Array.concat 
 
     let writeComps (comps: byte []) = async {
         do! write.bytes comps
@@ -101,23 +114,21 @@ open Components
 
 let prog () = async {   
 
-    let fg1 = Color.convToXTerm 0x00 0x95 0xff
-    
     let option n s =
-        div []
+        div
             [
-                StrComp [(fg 0xff 0xb9 0x31)] " => "
-                StrComp [(fg 0 0x95 0xff)] "Option "
-                StrComp [(fg 0xff 0 0)] (sprintf "%i: " n) 
-                StrComp [(fg 0x5f 0xba 0x7d)] (sprintf "%s\n" s)        
+                StrComp [(fg 0xff 0xb9 0x31); bold] " => "
+                StrComp [(fg 0 0x95 0xff); uline] "Option"; space
+                StrComp [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
+                StrComp [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
             ] 
 
     let content =
-        div [] 
+        div  
             [
-                option 1 "Find him and talk to him"
-                option 2 "Threaten family"
-                option 3 "Assasinate from a distance"            
+                option 1 "Standalone monolyth"
+                option 2 "Web Farm deployed locally"
+                option 3 "Microservices in Nomad Cluster"            
             ] 
     do! writeComps content
 }
