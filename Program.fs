@@ -115,7 +115,17 @@ module Components =
         do! write.bytes comps
     }
 
+module KeyPatterns =
+    let (|Esc|_|) (cki:ConsoleKeyInfo) = if cki.Key = ConsoleKey.Escape then Some Esc else None
+    let (|CR|_|) (cki:ConsoleKeyInfo)  = if (int cki.KeyChar) = 10 || (int cki.KeyChar) = 13 then Some CR else None
+    let (|Printable|_|) (cki:ConsoleKeyInfo) = 
+        let ci = int cki.KeyChar
+        if 32 <= ci && ci <= 126 
+        then Some(Printable cki.KeyChar) 
+        else None
+
 open Components
+open KeyPatterns
 
 let loading () = async {
     do! writeComps (StrComp [(fg 225 225 30)] "Loading...\n")
@@ -140,23 +150,40 @@ let loading () = async {
 }
 
 let cmdLine () = async {
-    use inStream = Console.OpenStandardInput()
+    let sb = new System.Text.StringBuilder(1000)
     let rec loop () = async {
         let ki = Console.ReadKey true
-        if ki.Key <> ConsoleKey.Escape then
-            let keyCode = int ki.KeyChar
-            if 32 <= keyCode && keyCode <= 126 then
-                let content = 
-                    div
-                        [
-                            StrComp [] (sprintf "%c" ki.KeyChar)
-                        ]
-                do! writeComps content
-            else
-                ()
-            do! loop ()
+        match ki with
+        | Esc -> return None
+        | CR ->
+            let s = string sb
+            sb.Clear() |> ignore
+            return Some s
+        | Printable c ->
+            do! writeComps (div [ StrComp [] (sprintf "%c" c)])
+            sb.Append(c) |> ignore
+            return! loop ()
+        | _ -> 
+            return! loop ()
     }
-    do! loop ()
+    let prompt =
+        div
+            [
+                space
+                StrComp [fg 0x7a 0x6f 0xfa; bold] "echo"
+                space
+                StrComp [fg 0xf0 0xff 0x20; bold] ">>>"
+                space
+            ]
+    let rec echoLoop () = async {
+        match! loop() with
+        | Some s -> 
+            do! writeComps (div [cr; prompt; StrComp [(fg 180 180 20)] s; cr]) 
+            do! echoLoop()
+        | None ->
+            ()
+    }
+    do! echoLoop ()
     do! writeComps (div [cr; StrComp [] "Done..."; cr])
 }
 
