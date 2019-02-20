@@ -87,7 +87,7 @@ module Components =
     let bg r g b = bgXTerm (Color.convToXTerm r g b)
 
     let bold = {
-        openTag = Some (enc.code (sprintf "1m"))
+        openTag = Some (enc.code "1m")
         closeTag = Some (enc.code "0m")
     }
 
@@ -95,6 +95,11 @@ module Components =
     let space = strToBytes " "
 
     let cr = strToBytes "\n"
+
+    let moveUp    count = enc.code (sprintf "%iA" count)
+    let moveDown  count = enc.code (sprintf "%iB" count)
+    let moveRight count = enc.code (sprintf "%iC" count)
+    let moveLeft  count = enc.code (sprintf "%iD" count)
 
     let uline = {
         openTag = Some (enc.code (sprintf "4m"))
@@ -111,6 +116,49 @@ module Components =
     }
 
 open Components
+
+let loading () = async {
+    do! writeComps (StrComp [(fg 225 225 30)] "Loading...\n")
+    let rec loop pct = async {
+        let width = (pct + 1) / 4
+        let content =
+            div
+                [
+                    moveLeft 1000
+                    StrComp [(fg 200 0 0)] "["
+                    StrComp [(bg 255 80 20)] (new String(' ', width))
+                    StrComp [] (new String(' ', 25 - width))
+                    StrComp [(fg 200 0 0)] "]"
+                ]
+        do! writeComps content
+        do! Async.Sleep 5
+        if pct < 100 then
+            do! loop (pct + 1)
+    }    
+    do! loop 0
+    do! writeComps cr
+}
+
+let cmdLine () = async {
+    use inStream = Console.OpenStandardInput()
+    let rec loop () = async {
+        let ki = Console.ReadKey true
+        if ki.Key <> ConsoleKey.Escape then
+            let keyCode = int ki.KeyChar
+            if 32 <= keyCode && keyCode <= 126 then
+                let content = 
+                    div
+                        [
+                            StrComp [] (sprintf "%c" ki.KeyChar)
+                        ]
+                do! writeComps content
+            else
+                ()
+            do! loop ()
+    }
+    do! loop ()
+    do! writeComps (div [cr; StrComp [] "Done..."; cr])
+}
 
 let prog () = async {   
 
@@ -131,6 +179,9 @@ let prog () = async {
                 option 3 "Microservices in Nomad Cluster"            
             ] 
     do! writeComps content
+    do! loading()
+    do! cmdLine()
+    do! writeComps cr
 }
 
 [<EntryPoint>]
