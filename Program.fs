@@ -28,6 +28,14 @@ module Color =
         (-1,257,0)
       |> fun (idxMin,_,_) -> (idxMin + 16)
 
+(*
+ Flight Deck colors:
+ Blue: #0879c9
+ Orange: #dfad0b
+ Teal: #4db6ac 
+ Red: #e74c3c
+*)
+
 [<RequireQualifiedAccess>]
 module Hex =
     let Tab = 0x09uy
@@ -63,7 +71,7 @@ module Components =
 
     type Comp = attrTags array -> byte array list -> byte array
 
-    let strComp attrs (contents:string) = 
+    let text attrs (contents:string) = 
         let openings = attrs |> List.choose (fun a -> a.openTag) 
         let closings = attrs |> List.choose (fun a -> a.closeTag) |> List.rev
         Array.concat [|
@@ -119,7 +127,7 @@ module Components =
            (contents |> Array.ofList)
         |] |> Array.concat 
 
-    let writeComps (comps: byte []) = async {
+    let render (comps: byte []) = async {
         do! write.bytes comps
     }
 
@@ -155,39 +163,52 @@ open System
 open System.Threading
 
 let loading () = async {
-    do! writeComps (strComp [(fg 225 225 30)] "Loading...\n")
+    do! render (text [(fg 225 225 30)] "Loading...\n")
     let rec loop pct = async {
         let width = (pct + 1) / 4
         let content =
             div
                 [
                     moveLeft 1000
-                    strComp [(fg 200 0 0)] "["
-                    strComp [(bg 255 80 20)] (new String(' ', width))
-                    strComp [] (new String(' ', 25 - width))
-                    strComp [(fg 200 0 0)] "]"
+                    text [(fg 200 0 0)] "["
+                    text [(bg 255 80 20)] (new String(' ', width))
+                    text [] (new String(' ', 25 - width))
+                    text [(fg 200 0 0)] "]"
                 ]
-        do! writeComps content
+        do! render content
         do! Async.Sleep 5
         if pct < 100 then
             do! loop (pct + 1)
     }    
     do! loop 0
-    do! writeComps cr
+    do! render cr
 }
 
 let cmdLine () = async {
+    let prompt = 
+        div
+            [
+                space
+                text [fg 0 0 255] "FlightDeck"
+                text [fg 220 220 20] "@"
+                text [fg 250 100 100] "PROD"
+                space
+                text [fg 100 100 100] "$"
+                space
+            ]
+    let idxoffset = 19
     let rec loop idx (sb:StringBuilder) = async {
         let content = 
             div
                 [
                     clrLine
                     moveLeft 1000
-                    strComp [] (sb.ToString())
+                    prompt
+                    text [] (sb.ToString())
                     moveLeft 1000
+                    moveRight (idx + idxoffset)
                 ]
-        do! writeComps content
-        if idx > 0 then do! writeComps (moveRight idx)
+        do! render content
         let ki = Console.ReadKey true
         
         match ki with
@@ -196,10 +217,7 @@ let cmdLine () = async {
             let s = string sb
             sb.Clear() |> ignore
             return Some s
-        | Printable c ->
-            //do! writeComps (div [ strComp [] (sprintf "%c" c)])
-            sb.Insert(idx, c) |> ignore
-            return! loop (idx + 1) sb
+        | Printable c -> return! loop (idx + 1) (sb.Insert(idx,c))
         | Arrow Left ->  return! loop (max 0 (idx - 1)) sb
         | Arrow Right -> return! loop (min (sb.Length) (idx + 1)) sb
 
@@ -214,27 +232,30 @@ let cmdLine () = async {
         | _ -> 
             return! loop idx sb
     }
-    let prompt =
+    let echoPrompt =
         div
             [
                 space
-                strComp [fg 0x7a 0x6f 0xfa; bold] "echo"
+                text [fg 0x7a 0x6f 0xfa; bold] "echo"
                 space
-                strComp [fg 0xf0 0xff 0x20; bold] ">>>"
+                text [fg 0xf0 0xff 0x20; bold] ">>>"
                 space
             ]
     let rec echoLoop () = async {
         let sb = new StringBuilder(1000)
         match! loop 0 sb with
-        | Some s -> 
-            do! writeComps (div [cr; prompt; strComp [(fg 180 180 20)] s; cr])
+        | Some s when s.Length > 0 -> 
+            do! render (div [cr; cr; echoPrompt; text [(fg 180 180 20)] s; cr; cr])
             sb.Clear() |> ignore 
+            do! echoLoop()
+        | Some _ ->
+            do! render cr
             do! echoLoop()
         | None ->
             ()
     }
     do! echoLoop ()
-    do! writeComps (div [cr; strComp [] "Done..."; cr])
+    do! render (div [cr; text [] "Done..."; cr])
 }
 
 let prog () = async {   
@@ -242,10 +263,10 @@ let prog () = async {
     let option n s =
         div
             [
-                strComp [(fg 0xff 0xb9 0x31); bold] " => "
-                strComp [(fg 0 0x95 0xff); uline] "Option"; space
-                strComp [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
-                strComp [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
+                text [(fg 0xff 0xb9 0x31); bold] " => "
+                text [(fg 0 0x95 0xff); uline] "Option"; space
+                text [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
+                text [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
             ] 
 
     let content =
@@ -255,10 +276,10 @@ let prog () = async {
                 option 2 "Web Farm deployed locally"
                 option 3 "Microservices in Nomad Cluster"            
             ] 
-    do! writeComps content
+    do! render content
     do! loading()
     do! cmdLine()
-    do! writeComps cr
+    do! render cr
 }
 
 [<EntryPoint>]
