@@ -1,5 +1,6 @@
 namespace Fons
 open System
+open System.Reflection.Metadata.Ecma335
 
 module OutCommands = 
 
@@ -8,12 +9,24 @@ module OutCommands =
     type ColorValue =
     | RGB of R:int * G:int * B:int
     | XTerm256 of int
+    with 
+        member x.ToCode = 
+            match x with
+            | RGB(r,g,b) -> Color.convToXTerm r g b
+            | XTerm256 n -> n
 
     type StyleSetting =
     | Fg of ColorValue
     | Bg of ColorValue
     | Bold 
     | Underline 
+    with 
+        static member ToBytes x = 
+            match x with
+            | Fg cv -> enc.code (sprintf "38;5;%im" cv.ToCode)
+            | Bg cv -> enc.code (sprintf "48;5;%im" cv.ToCode)
+            | Bold -> enc.code "1m"
+            | Underline -> enc.code "4m"
 
     type MovementCmd = 
     | PageHome  // upper left of page
@@ -48,15 +61,9 @@ module OutCommands =
 module Internal =
     open OutCommands
     open LowLevel
-    type Style = {
-        Foreground: ColorValue option
-        Background: ColorValue option
-        Bold: bool option
-        Underline: bool option
-    } with static member init = { Foreground = None; Background = None; Bold = None; Underline = None }
 
     type RenderState = {
-        StyleStack: Style list
+        StyleStack: StyleSetting list list
         /// TODO:
         /// * cursor location
         /// * screen size
@@ -109,27 +116,14 @@ module Rendering =
     | RGB(r,g,b) -> Color.convToXTerm r g b
     | XTerm256 n -> n
 
-    let styleToBytes style =
-        write.buffer <|
-            Array.concat    
-                [|
-                    match style.Background with 
-                    | Some (RGB(r,g,b)) ->  yield bg r g b
-                    | Some (XTerm256 n) -> yield bgXTerm n 
-                    | None -> ()
-
-                    match style.Foreground with
-                    | Some (RGB(r,g,b)) -> yield fg r g b
-                    | Some (XTerm256 n) -> yield fgXTerm n 
-                    | None -> ()
-
-                    match style.Bold with | Some b -> yield bold | _ -> ()
-
-                    match style.Underline with | Some u -> yield uline | _ -> ()
-                |] 
+    let writeStyles (styles:StyleSetting list) =
+        styles
+        |> List.map (StyleSetting.ToBytes)
+        |> Array.concat
+        |> write.buffer
 
     let render (initialState: RenderState) (commands: RenderCmd list) : RenderState =
-        let applyStyle styles =
+(*         let applyStyle styles =
             let newStyle = 
                 styles 
                 |> List.fold (fun cur style -> 
@@ -139,15 +133,24 @@ module Rendering =
                     | Bold b -> { cur with Bold = Some b }
                     | Underline u -> { cur with Underline = Some u }
                 ) Style.init
-            styleToBytes newStyle
-            newStyle
+            writeStyles newStyle
+            newStyle *)
 
         let rec renderStep state cmd =
             match cmd with
             | RenderCmd.Clear clr -> state
-            | RenderCmd.Style styles -> 
-                let newStyle = applyStyle styles
-                { state with StyleStack = newStyle::state.StyleStack }
+            | RenderCmd.Style styles ->
+                // we need to merge current styles with previous styles, listing the previous
+                // styles first. Then apply them and pushed the merged styles. An optimization
+                // would be to clean duplicates after merging. Also, there's a problem with 
+                // turning off bolds/uline with this approach
+                let combined = 
+                    match state.StyleStack with
+                    | [] -> styles
+                    | prevHead::_ ->
+                        List.append prevHead styles 
+                writeStyles combined
+                { state with StyleStack = combined::state.StyleStack }
             | RenderCmd.Move move -> state
             | RenderCmd.Container (styles, content) ->
                 let weHadStyles = styles |> List.length > 0
@@ -164,7 +167,7 @@ module Rendering =
                     // the style to restore, and we can pop ours off the stack. Restoring
                     // means clearing the current style and applying the new style.
                     write.buffer clear
-                    if prev <> Style.init then styleToBytes prev
+                    if prev <> [] then writeStyles prev
                     { stateAfterContent with StyleStack = prev::rest }
                 | _::[] when weHadStyles -> 
                     // there was nothing before ours. We can return empty and restore 
@@ -195,8 +198,8 @@ module Components =
     let fg r g b = Fg(RGB(r,g,b))
     let bg r g b = Bg(RGB(r,g,b))
 
-    let bold = Bold true
-    let uline = Underline true
+    let bold = Bold 
+    let uline = Underline 
     
     let text styles content =
         RenderCmd.Container(styles, [RenderCmd.Text content])
