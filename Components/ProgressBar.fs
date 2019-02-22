@@ -9,7 +9,7 @@ module ProgressBar =
         let rec loop pct = async {
             let width = (pct + 1) / 4
             let content =
-                div
+                block
                     [
                         moveLeft 1000
                         text [(fg 200 0 0)] "["

@@ -36,7 +36,7 @@ open System.Threading
 
 let cmdLine () = async {
     let prompt = 
-        div
+        block
             [
                 space
                 text [fg 0 0 255] "FlightDeck"
@@ -49,7 +49,7 @@ let cmdLine () = async {
     let idxoffset = 19
     let rec loop idx (sb:StringBuilder) = async {
         let content = 
-            div
+            block
                 [
                     clrLine
                     moveLeft 1000
@@ -83,7 +83,7 @@ let cmdLine () = async {
             return! loop idx sb
     }
     let echoPrompt =
-        div
+        block
             [
                 space
                 text [fg 0x7a 0x6f 0xfa; bold] "echo"
@@ -95,7 +95,7 @@ let cmdLine () = async {
         let sb = new StringBuilder(1000)
         match! loop 0 sb with
         | Some s when s.Length > 0 -> 
-            do! render (div [cr; cr; echoPrompt; text [(fg 180 180 20)] s; cr; cr])
+            do! render (block [cr; cr; echoPrompt; text [(fg 180 180 20)] s; cr; cr])
             sb.Clear() |> ignore 
             do! echoLoop()
         | Some _ ->
@@ -105,31 +105,43 @@ let cmdLine () = async {
             ()
     }
     do! echoLoop ()
-    do! render (div [cr; text [] "Done..."; cr])
+    do! render (block [cr; text [] "Done..."; cr])
 }
 
 let prog () = async {   
-
+    do! render <| block [ setAlt; clrScreen; home ]
     let option n s =
-        div
+        block
             [
                 text [(fg 0xff 0xb9 0x31); bold] " => "
-                text [(fg 0 0x95 0xff); uline] "Option"; space
+                text [(fg 0 0x95 0xff); uline] "Option" 
+                space
                 text [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
                 text [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
             ] 
-
-    let content =
-        div  
+(*
+    do! render <|
+        block  
             [
                 option 1 "Standalone monolyth"
                 option 2 "Web Farm deployed locally"
                 option 3 "Microservices in Nomad Cluster"            
             ] 
-    do! render content
-    do! ProgressBar.loading()
+
+    // do! ProgressBar.loading()
+*)    
+    do! render <|
+        div [bg 0 150 10] 
+            [
+                cr
+                text [] "this sentence will have "
+                text [] "made up of two parts before the special formatting "
+                text [fg 0 0 0] "some gray, bold words "
+                text [] "right in the middle"
+                cr
+            ]
     do! cmdLine()
-    do! render cr
+    do! render <| block [ setNoAlt ]
 }
 
 [<EntryPoint>]
