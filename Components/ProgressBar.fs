@@ -5,7 +5,7 @@ module ProgressBar =
     open Components 
 
     let loading () = async {
-        do! render (text [(fg 225 225 30)] "Loading...\n")
+(*         do! render (text [(fg 225 225 30)] "Loading...\n")
         let rec loop pct = async {
             let width = (pct + 1) / 4
             let content =
@@ -23,5 +23,6 @@ module ProgressBar =
                 do! loop (pct + 1)
         }    
         do! loop 0
-        do! render cr
+        do! render cr *)
+        return ()
     }

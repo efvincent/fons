@@ -19,15 +19,15 @@ module LowLevel =
 
     [<RequireQualifiedAccessAttribute>]
     module write =
-        let bytes (b:byte[]) = async {
-            use so = Console.OpenStandardOutput ()
-            do! so.AsyncWrite b
-        }    
+        
+        let buffer (b:byte[]) =
+            use so = Console.OpenStandardOutput()
+            so.Write(b,0,b.Length)
 
-        let byte (b:byte) = bytes [| b |]
+        let byte (b:byte) = buffer [| b |]
 
-        let code c = bytes <| Array.concat [| [| Hex.Esc; Hex.LSqBracket |]; strToBytes c |]
+        let code c = buffer <| Array.concat [| [| Hex.Esc; Hex.LSqBracket |]; strToBytes c |]
                 
-        let str s = bytes (strToBytes s) 
+        let str s = buffer (strToBytes s) 
 
-        let newLine = bytes (strToBytes "\n")
+        let newLine = buffer (strToBytes "\n")

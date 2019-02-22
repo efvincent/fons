@@ -1,59 +1,224 @@
 namespace Fons
+open System
 
-module Components =
+module OutCommands = 
 
     open LowLevel
 
-    /// Style stack is used to support nested styles. Example: you have a div that indicates white on blue.
-    /// Within that is a plain text element, an element that implements yellow foreground, and another
-    /// plain element. What should render is the first element as white on blue, the second as yellow on blue
-    /// (the blue is from the div), and the third element is white on blue again. The behavior is that when
-    /// an element's scope is complete, the style reverts to what it was before the element. And this effect
-    /// can be nested. Terminal by itself cannot do this.
-    let private styleStack = new System.Collections.Generic.Stack<byte[]>()
+    type ColorValue =
+    | RGB of R:int * G:int * B:int
+    | XTerm256 of int
 
-    (*
-        CONTAINERS / CURRENT STYLE
-    *)
+    type StyleSetting =
+    | Fg of ColorValue
+    | Bg of ColorValue
+    | Bold 
+    | Underline 
 
-    /// Accepts a list of byte arrays and concats into a single byte
-    /// array. Use it like you'd use a div in react, to group many
-    /// other controls into a single control
-    let block (contents:byte [] list) =
-        Array.concat [|
-           (contents |> Array.ofList)
-        |] |> Array.concat 
+    type MovementCmd = 
+    | PageHome  // upper left of page
+    | PageEnd   // lower right of page
+    | Home      // start of line
+    | End       // end of line
+    | Left of int       // Move left n postitions
+    | Right of int      // Move right n positions
+    | Up of int         // Move up n positions
+    | Down of int       // Move down n positions
 
-    /// Push new styles onto the style stack. Anything after this point will default to the
-    /// new style. Old style is saved, and can be returned to with a popStyle command
-    let pushStyle attrs =
-        let styles = attrs |> Array.concat
-        if styles.Length > 0 then styleStack.Push styles
-        styles
 
-    /// calculates the combined previous style, which is a clear command, then a re-application of the stacked
-    /// up styles, then pops off the last style, and applies the calculated old style. If there's nothing
-    /// in the stack, it simply resets the current style
-    let popStyle () =
-        if styleStack.Count > 0 then
-            styleStack.Pop() |> ignore
-            [| (enc.code "0m"); styleStack.ToArray() |> Array.concat |] |> Array.concat
-        else enc.code "0m"
+    [<RequireQualifiedAccess>]
+    type ClearCmd =
+    | ToStartOfLine
+    | ToEndOfLine
+    | Line
+    | ToStartOfScreen
+    | ToEndOfScreen
+    | Screen
 
-    /// A div is like a block with attributes
-    let div attrs (contents:byte [] list) =
-        let hasStyle = attrs |> Seq.length > 0
-        // This must be done as a sequential separate steps because the style stack is a side
-        // effect, and is mutated on pre and post
-        let pre = if hasStyle then pushStyle attrs else Array.empty
-        let content = contents |> Array.ofList |> Array.concat
-        let post  = if hasStyle then popStyle () else Array.empty
-        [|pre; content; post|] |> Array.concat
+    [<RequireQualifiedAccess>]
+    type RenderCmd =
+    | Style of StyleSetting list
+    | Clear of ClearCmd
+    | Move of MovementCmd
+    | Text of string
+    | Container of StyleSetting list * RenderCmd list
+    | CR 
+
+
+module Internal =
+    open OutCommands
+    open LowLevel
+    type Style = {
+        Foreground: ColorValue option
+        Background: ColorValue option
+        Bold: bool option
+        Underline: bool option
+    } with static member init = { Foreground = None; Background = None; Bold = None; Underline = None }
+
+    type RenderState = {
+        StyleStack: Style list
+        /// TODO:
+        /// * cursor location
+        /// * screen size
+        /// * FUTURE: content state... Use for retained mode. Each position needs all information, style, and content
+        ///   typically there'd be some optimization to provide for large areas (blocks) of characters
+    }
+    with
+        static member init = {
+            StyleStack = []
+        }
+
+
+     /// Foreground color as XTerm code number
+    let fgXTerm n = (enc.code (sprintf "38;5;%im" n))
+
+    /// Foreground as RGB number, 0-255
+    /// For hex, prefix with 0x, as in 0x6F
+    let fg r g b = fgXTerm (Color.convToXTerm r g b)
+
+    /// Set background color as XTerm code number
+    let bgXTerm n = enc.code (sprintf "48;5;%im" n)
+
+    /// Set background color as RGB number, 0-255
+    let bg r g b = bgXTerm (Color.convToXTerm r g b)
+
+    /// Turn on bold characters
+    let bold = enc.code "1m"
+
+    /// Turn on underlining
+    let uline = enc.code (sprintf "4m")
+    
+    /// Turn off highlighting
+    let clear = enc.code "0m" 
+
+open Internal
+open System.Diagnostics
+open LowLevel
+open LowLevel
+open System.Threading
+open System.Threading
+open LowLevel
+
+module Rendering =
+
+    open LowLevel
+    open OutCommands
+    open Internal
+    
+    let private cvTo256 = function
+    | RGB(r,g,b) -> Color.convToXTerm r g b
+    | XTerm256 n -> n
+
+    let styleToBytes style =
+        write.buffer <|
+            Array.concat    
+                [|
+                    match style.Background with 
+                    | Some (RGB(r,g,b)) ->  yield bg r g b
+                    | Some (XTerm256 n) -> yield bgXTerm n 
+                    | None -> ()
+
+                    match style.Foreground with
+                    | Some (RGB(r,g,b)) -> yield fg r g b
+                    | Some (XTerm256 n) -> yield fgXTerm n 
+                    | None -> ()
+
+                    match style.Bold with | Some b -> yield bold | _ -> ()
+
+                    match style.Underline with | Some u -> yield uline | _ -> ()
+                |] 
+
+    let render (initialState: RenderState) (commands: RenderCmd list) : RenderState =
+        let applyStyle styles =
+            let newStyle = 
+                styles 
+                |> List.fold (fun cur style -> 
+                    match style with
+                    | Fg n -> { cur with Foreground = Some n}
+                    | Bg n -> { cur with Background = Some n}
+                    | Bold b -> { cur with Bold = Some b }
+                    | Underline u -> { cur with Underline = Some u }
+                ) Style.init
+            styleToBytes newStyle
+            newStyle
+
+        let rec renderStep state cmd =
+            match cmd with
+            | RenderCmd.Clear clr -> state
+            | RenderCmd.Style styles -> 
+                let newStyle = applyStyle styles
+                { state with StyleStack = newStyle::state.StyleStack }
+            | RenderCmd.Move move -> state
+            | RenderCmd.Container (styles, content) ->
+                let weHadStyles = styles |> List.length > 0
+                let stateAfterStyles = 
+                    if weHadStyles then
+                        renderStep state (RenderCmd.Style styles)
+                    else state
+                let stateAfterContent = content |> List.fold(renderStep) stateAfterStyles
+
+                // after rendering, check to see if we should restore a style
+                match stateAfterContent.StyleStack with
+                | _::prev::rest when weHadStyles ->
+                    // there's a style to restore, and we also applied a style. So restore
+                    // the style to restore, and we can pop ours off the stack. Restoring
+                    // means clearing the current style and applying the new style.
+                    write.buffer clear
+                    if prev <> Style.init then styleToBytes prev
+                    { stateAfterContent with StyleStack = prev::rest }
+                | _::[] when weHadStyles -> 
+                    // there was nothing before ours. We can return empty and restore 
+                    // a blanks style
+                    write.buffer clear
+                    { stateAfterContent with StyleStack = [] }
+                | _ ->
+                    // In any other case, we can just return the new state. We haven't modified
+                    // the style stack so it should stay as is
+                    stateAfterContent
+            | RenderCmd.Text text ->
+                write.buffer (strToBytes text)
+                state
+            | RenderCmd.CR -> 
+                write.buffer (strToBytes "\n")
+                state
+            
+        let newState = commands |> List.fold renderStep initialState
+        newState 
+    
+module Components =
+
+    open OutCommands
+
+    let initialRenderState = Internal.RenderState.init
+    let render = Rendering.render
+    
+    let fg r g b = Fg(RGB(r,g,b))
+    let bg r g b = Bg(RGB(r,g,b))
+
+    let bold = Bold true
+    let uline = Underline true
+    
+    let text styles content =
+        RenderCmd.Container(styles, [RenderCmd.Text content])
+        
+    let textLn styles content = 
+        text styles (content + "\n")
+
+    let write content = text [] content
+
+    let writeLn content = textLn [] content
+
+    let br = textLn [] ""
+
+    let block content = RenderCmd.Container([], content)
+
+    let div styles content = RenderCmd.Container(styles, content)
+
     (*
         MOTION
     *)
 
-    let moveUp    count = enc.code (sprintf "%iA" count)
+(*     let moveUp    count = enc.code (sprintf "%iA" count)
     let moveDown  count = enc.code (sprintf "%iB" count)
     let moveRight count = enc.code (sprintf "%iC" count)
     let moveLeft  count = enc.code (sprintf "%iD" count)
@@ -67,13 +232,13 @@ module Components =
     /// Scroll window up one line
     let scrollUp = enc.code "D"
     /// Scroll window down one line
-    let scrollDown = enc.code "M"
+    let scrollDown = enc.code "M" *)
 
     (*
         CLEARING / ALT SCREEN / SAVE CURSOR ATTRIBUTES
     *)
     
-    /// Clear the entire line. Does not move the cursor
+(*     /// Clear the entire line. Does not move the cursor
     let clrLine = enc.code "2K"
     /// Clear from current cursor postioin to the start of the line. Does not move the cursor
     let clrLineToStart = enc.code "1K"
@@ -99,56 +264,4 @@ module Components =
 
     /// Get the current cursor position. Look for current position in the
     /// input stream as EscLine;Column;Row
-    let getCursorPos = enc.code "6n" 
-
-    (*
-        ATTRIBUTES
-    *)
-
-    /// Foreground color as XTerm code number
-    let fgXTerm n = (enc.code (sprintf "38;5;%im" n))
-
-    /// Foreground as RGB number, 0-255
-    /// For hex, prefix with 0x, as in 0x6F
-    let fg r g b = fgXTerm (Color.convToXTerm r g b)
-
-    /// Set background color as XTerm code number
-    let bgXTerm n = enc.code (sprintf "48;5;%im" n)
-
-    /// Set background color as RGB number, 0-255
-    let bg r g b = bgXTerm (Color.convToXTerm r g b)
-
-    /// Turn on bold characters
-    let bold = enc.code "1m"
-
-    /// Turn on underlining
-    let uline = enc.code (sprintf "4m")
-    
-    /// Turn off highlighting
-    let clear = enc.code "0m"
-
-    (*
-        WIDGETS
-    *)
-
-    /// Write the text at the current cursor position with the given attributes
-    let text (attrs:seq<byte []>) (contents:string) = 
-        let hasStyle = attrs |> Seq.length > 0
-        let pre = if hasStyle then pushStyle attrs else Array.empty
-        let content = strToBytes contents 
-        let post = if hasStyle then popStyle () else Array.empty
-        Array.concat [| pre; content; post |]
-
-    /// unformatted space
-    let space = strToBytes " "
-
-    let cr = strToBytes "\n"
-
-    (*
-        RENDERING
-    *)
-
-    /// Renders a byte array
-    let render (comps: byte []) = async {
-        do! write.bytes comps
-    }
+    let getCursorPos = enc.code "6n"  *)

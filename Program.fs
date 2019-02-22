@@ -1,6 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-
-open System
+﻿open System
 open Fons
 
 module KeyPatterns =
@@ -29,12 +27,8 @@ module KeyPatterns =
         | _ -> None
 
 open Components
-open KeyPatterns
-open System.Text
-open System
-open System.Threading
 
-let cmdLine () = async {
+(* let cmdLine () = async {
     let prompt = 
         block
             [
@@ -106,10 +100,10 @@ let cmdLine () = async {
     }
     do! echoLoop ()
     do! render (block [cr; text [] "Done..."; cr])
-}
+} *)
 
-let prog () = async {   
-    do! render <| block [ setAlt; clrScreen; home ]
+let prog () =    
+(*    do! render <| block [ setAlt; clrScreen; home ]
     let option n s =
         block
             [
@@ -119,7 +113,7 @@ let prog () = async {
                 text [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
                 text [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
             ] 
-(*
+
     do! render <|
         block  
             [
@@ -129,7 +123,7 @@ let prog () = async {
             ] 
 
     // do! ProgressBar.loading()
-*)    
+    
     do! render <|
         div [bg 0 150 10] 
             [
@@ -142,9 +136,27 @@ let prog () = async {
             ]
     do! cmdLine()
     do! render <| block [ setNoAlt ]
-}
+    *)
+
+    let renderState = 
+        render initialRenderState [
+            write "plain text "
+            div [bg 255 255 0; fg 0 0 0] [ 
+                write "black on yellow " 
+                text [fg 50 50 255; bold] "\nblue and bold on yellow"
+                div [uline] [
+                    textLn [bg 255 0 255] "\nblue and bold on purple underlined"
+                    writeLn "blue, bold on yellow, uline"
+                ]
+                text [] " black on yellow "
+            ]
+            text [fg 255 120 120] "red on black "
+            write "plain text"
+            br
+        ] 
+    renderState |> ignore
 
 [<EntryPoint>]
 let main argv =
-    prog () |> Async.RunSynchronously
+    prog () |> ignore
     0
