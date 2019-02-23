@@ -29,17 +29,16 @@ module OutCommands =
             | Underline -> enc.code "4m"
 
     type MovementCmd = 
-    | PageHome  // upper left of page
-    | PageEnd   // lower right of page
-    | Home      // start of line
-    | End       // end of line
-    | Left of int       // Move left n postitions
-    | Right of int      // Move right n positions
-    | Up of int         // Move up n positions
-    | Down of int       // Move down n positions
+    | PageHome  // upper left of page - [H
+    | NextLine       // move to the next line - [E
+    | Pos of row:int * col:int // move to abs position row height - [line;colH 
+    | ScrollUp          // Scroll window up -       D
+    | ScrollDown        // Scroll window down -     M
+    | Up of int         // Move up n positions -    [A
+    | Down of int       // Move down n positions  - [B
+    | Right of int      // Move right n positions - [C
+    | Left of int       // Move left n postitions - [D
 
-
-    [<RequireQualifiedAccess>]
     type ClearCmd =
     | ToStartOfLine
     | ToEndOfLine
@@ -48,8 +47,15 @@ module OutCommands =
     | ToEndOfScreen
     | Screen
 
+    type TerminalCmd =
+    | SwitchToAltBuffer
+    | SwitchToMainBuffer
+    | SaveExcursion
+    | RestoreExcursion
+    
     [<RequireQualifiedAccess>]
     type RenderCmd =
+    | Term of TerminalCmd
     | Style of StyleSetting list
     | Clear of ClearCmd
     | Move of MovementCmd
@@ -75,42 +81,11 @@ module Internal =
             StyleStack = []
         }
 
-
-     /// Foreground color as XTerm code number
-    let fgXTerm n = (enc.code (sprintf "38;5;%im" n))
-
-    /// Foreground as RGB number, 0-255
-    /// For hex, prefix with 0x, as in 0x6F
-    let fg r g b = fgXTerm (Color.convToXTerm r g b)
-
-    /// Set background color as XTerm code number
-    let bgXTerm n = enc.code (sprintf "48;5;%im" n)
-
-    /// Set background color as RGB number, 0-255
-    let bg r g b = bgXTerm (Color.convToXTerm r g b)
-
-    /// Turn on bold characters
-    let bold = enc.code "1m"
-
-    /// Turn on underlining
-    let uline = enc.code (sprintf "4m")
-    
-    /// Turn off highlighting
-    let clear = enc.code "0m" 
-
-open Internal
-open System.Diagnostics
-open LowLevel
-open LowLevel
-open System.Threading
-open System.Threading
-open LowLevel
-
 module Rendering =
 
     open LowLevel
-    open OutCommands
     open Internal
+    open OutCommands
     
     let private cvTo256 = function
     | RGB(r,g,b) -> Color.convToXTerm r g b
@@ -122,11 +97,42 @@ module Rendering =
         |> Array.concat
         |> write.buffer
 
-    let render (initialState: RenderState) (commands: RenderCmd list) : RenderState =
+    let render (commands: RenderCmd list) (initialState: RenderState) : RenderState =
 
         let rec renderStep state cmd =
             match cmd with
-            | RenderCmd.Clear clr -> state
+            | RenderCmd.Term SwitchToAltBuffer ->
+                write.buffer <| enc.code "?47h"
+                state
+            | RenderCmd.Term SwitchToMainBuffer ->
+                write.buffer <| enc.code "?47l"
+                state
+            | RenderCmd.Term SaveExcursion ->
+                write.buffer <| enc.code "s" 
+                state
+            | RenderCmd.Term RestoreExcursion ->
+                write.buffer <| enc.code "u"
+                state
+
+            | RenderCmd.Clear ToStartOfLine ->
+                write.buffer <| enc.code "1K"
+                state
+            | RenderCmd.Clear ToEndOfLine ->
+                write.buffer <| enc.code "0K"
+                state
+            | RenderCmd.Clear Line ->
+                write.buffer <| enc.code "2K"
+                state
+            | RenderCmd.Clear ToStartOfScreen ->
+                write.buffer <| enc.code "1J"
+                state
+            | RenderCmd.Clear ToEndOfScreen ->
+                write.buffer <| enc.code "0J"
+                state
+            | RenderCmd.Clear Screen ->
+                write.buffer <| enc.code "2J"
+                state
+
             | RenderCmd.Style styles ->
                 // we need to merge current styles with previous styles, listing the previous
                 // styles first. Then apply them and pushed the merged styles. An optimization
@@ -139,7 +145,35 @@ module Rendering =
                         List.append prevHead styles 
                 writeStyles combined
                 { state with StyleStack = combined::state.StyleStack }
-            | RenderCmd.Move move -> state
+
+            | RenderCmd.Move (Up n) ->
+                write.buffer <| enc.code (sprintf "%iA" n)
+                state
+            | RenderCmd.Move (Down n) ->
+                write.buffer <| enc.code (sprintf "%iB" n)
+                state
+            | RenderCmd.Move (Right n) ->
+                write.buffer <| enc.code (sprintf "%iC" n)
+                state
+            | RenderCmd.Move (Left n) ->
+                write.buffer <| enc.code (sprintf "%iD" n)
+                state
+            | RenderCmd.Move NextLine ->
+                write.buffer <| enc.code "E"
+                state
+            | RenderCmd.Move PageHome ->
+                write.buffer <| enc.code "H"
+                state
+            | RenderCmd.Move (Pos(row,col)) ->
+                write.buffer <| enc.code (sprintf "%i;%iH" row col)
+                state
+            | RenderCmd.Move ScrollUp ->
+                write.buffer <| enc.codeNoBracket "D"
+                state
+            | RenderCmd.Move ScrollDown ->
+                write.buffer <| enc.codeNoBracket "M"
+                state
+
             | RenderCmd.Container (styles, content) ->
                 let weHadStyles = styles |> List.length > 0
                 let stateAfterStyles = 
@@ -153,18 +187,19 @@ module Rendering =
                     // there's a style to restore, and we also applied a style. So restore
                     // the style to restore, and we can pop ours off the stack. Restoring
                     // means clearing the current style and applying the new style.
-                    write.buffer clear
+                    write.buffer <| enc.code "0m"
                     if prev <> [] then writeStyles prev
                     { stateAfterContent with StyleStack = prev::rest }
                 | _::[] when weHadStyles -> 
                     // there was nothing before ours. We can return empty and restore 
                     // a blanks style
-                    write.buffer clear
+                    write.buffer <| enc.code "0m"
                     { stateAfterContent with StyleStack = [] }
                 | _ ->
                     // In any other case, we can just return the new state. We haven't modified
                     // the style stack so it should stay as is
                     stateAfterContent
+
             | RenderCmd.Text text ->
                 write.buffer (strToBytes text)
                 state
@@ -191,14 +226,16 @@ module Components =
     let text styles content =
         RenderCmd.Container(styles, [RenderCmd.Text content])
         
-    let textLn styles content = 
+    let textln styles content = 
         text styles (content + "\n")
 
     let write content = text [] content
 
-    let writeLn content = textLn [] content
+    let writeln content = textln [] content
 
-    let br = textLn [] ""
+    let br = writeln ""
+
+    let space = write " "
 
     let block content = RenderCmd.Container([], content)
 
@@ -207,51 +244,47 @@ module Components =
     (*
         MOTION
     *)
+    let home = RenderCmd.Move PageHome
 
-(*     let moveUp    count = enc.code (sprintf "%iA" count)
-    let moveDown  count = enc.code (sprintf "%iB" count)
-    let moveRight count = enc.code (sprintf "%iC" count)
-    let moveLeft  count = enc.code (sprintf "%iD" count)
+    let nextLine = RenderCmd.Move NextLine
 
-    /// Move cursor to the upper left hand corner of the screen (0,0)
-    let home = enc.code "H"
-    /// Move the cursor to specified position (line, column) zero based
-    let moveTo line col = enc.code (sprintf "%i;%iH" line col)
-    /// Move to the next line
-    let moveNextLine = enc.code "E"
-    /// Scroll window up one line
-    let scrollUp = enc.code "D"
-    /// Scroll window down one line
-    let scrollDown = enc.code "M" *)
+    let pos row col = RenderCmd.Move <| Pos(row,col)
 
+    let scrollUp = RenderCmd.Move ScrollUp
+
+    let scrollDown = RenderCmd.Move ScrollDown
+
+    let up n = RenderCmd.Move<| Up n
+
+    let down n =  RenderCmd.Move<| Down n
+
+    let left n = RenderCmd.Move <| Left n
+
+    let right n = RenderCmd.Move <| Right n
     (*
         CLEARING / ALT SCREEN / SAVE CURSOR ATTRIBUTES
     *)
-    
-(*     /// Clear the entire line. Does not move the cursor
-    let clrLine = enc.code "2K"
-    /// Clear from current cursor postioin to the start of the line. Does not move the cursor
-    let clrLineToStart = enc.code "1K"
-    /// Clear from current cursor position to the end of the line. Does not move the cursor
-    let clrLineToEnd = enc.code "0K"
 
-    /// Clear the entire screen. Does not move the cursor
-    let clrScreen = enc.code "2J"
-    /// Clear from current cursor position to the start of the screen. Does not move the cursor
-    let clrScreenToStart = enc.code "1J"
-    /// Clear from current cursor position to the end of the screen. Does not move the cursor
-    let clrScreenToEnd = enc.code "0J"
+    let clrLine = RenderCmd.Clear Line
+   
+    let clrLineToStart = RenderCmd.Clear ToStartOfLine
 
-    /// switch to alt screen
-    let setAlt = enc.code "?47h"
-    /// switch to normal screen
-    let setNoAlt = enc.code "?47l"
+    let clrLineToEnd = RenderCmd.Clear ToEndOfLine
 
-    /// Save cursor attributes
-    let saveCursor = enc.code "s"
-    /// Restor cursor attributes
-    let restoreCursor = enc.code "u"
+    let clrScreen = RenderCmd.Clear Screen
+
+    let clrScreenToEnd = RenderCmd.Clear ToEndOfScreen
+
+    let clrScreenToStart = RenderCmd.Clear ToStartOfScreen
+
+    let switchToAlt = RenderCmd.Term SwitchToAltBuffer
+
+    let switchToMain = RenderCmd.Term SwitchToMainBuffer
+
+    let saveExcursion = RenderCmd.Term SaveExcursion
+
+    let RestoreExcursion = RenderCmd.Term RestoreExcursion
 
     /// Get the current cursor position. Look for current position in the
     /// input stream as EscLine;Column;Row
-    let getCursorPos = enc.code "6n"  *)
+    // let getCursorPos = enc.code "6n"

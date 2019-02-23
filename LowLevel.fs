@@ -16,6 +16,7 @@ module LowLevel =
     [<RequireQualifiedAccess>]
     module enc =
         let code c = Array.concat [| [| Hex.Esc; Hex.LSqBracket |]; strToBytes c |]
+        let codeNoBracket c = Array.concat [| [| Hex.Esc; |]; strToBytes c |]
 
     [<RequireQualifiedAccessAttribute>]
     module write =

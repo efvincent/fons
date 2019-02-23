@@ -27,8 +27,10 @@ module KeyPatterns =
         | _ -> None
 
 open Components
+open KeyPatterns
+open System.Text
 
-(* let cmdLine () = async {
+let cmdLine state = 
     let prompt = 
         block
             [
@@ -41,29 +43,29 @@ open Components
                 space
             ]
     let idxoffset = 19
-    let rec loop idx (sb:StringBuilder) = async {
+    let rec loop state idx (sb:StringBuilder) =
         let content = 
             block
                 [
                     clrLine
-                    moveLeft 1000
+                    left 1000
                     prompt
                     text [] (sb.ToString())
-                    moveLeft 1000
-                    moveRight (idx + idxoffset)
+                    left 1000
+                    right (idx + idxoffset)
                 ]
-        do! render content
+        let state' = render [content] state
         let ki = Console.ReadKey true
         
         match ki with
-        | Esc -> return None
+        | Esc -> None
         | CR ->
             let s = string sb
             sb.Clear() |> ignore
-            return Some s
-        | Printable c -> return! loop (idx + 1) (sb.Insert(idx,c))
-        | Arrow Left ->  return! loop (max 0 (idx - 1)) sb
-        | Arrow Right -> return! loop (min (sb.Length) (idx + 1)) sb
+            Some s
+        | Printable c -> loop state (idx + 1) (sb.Insert(idx,c))
+        | Arrow Left ->  loop state (max 0 (idx - 1)) sb
+        | Arrow Right -> loop state (min (sb.Length) (idx + 1)) sb
 
         | BS ->
             let idx' =
@@ -72,10 +74,10 @@ open Components
                     idx - 1
                 else
                     idx
-            return! loop idx' sb
+            loop state idx' sb
         | _ -> 
-            return! loop idx sb
-    }
+            loop state idx sb
+    
     let echoPrompt =
         block
             [
@@ -85,68 +87,33 @@ open Components
                 text [fg 0xf0 0xff 0x20; bold] ">>>"
                 space
             ]
-    let rec echoLoop () = async {
+    let rec echoLoop state =
         let sb = new StringBuilder(1000)
-        match! loop 0 sb with
+        match loop state 0 sb with
         | Some s when s.Length > 0 -> 
-            do! render (block [cr; cr; echoPrompt; text [(fg 180 180 20)] s; cr; cr])
+            let state' = render [block [br; br; echoPrompt; text [(fg 180 180 20)] s; br; br]] state
             sb.Clear() |> ignore 
-            do! echoLoop()
+            echoLoop state'
         | Some _ ->
-            do! render cr
-            do! echoLoop()
+            echoLoop <| render [br] state
         | None ->
-            ()
-    }
-    do! echoLoop ()
-    do! render (block [cr; text [] "Done..."; cr])
-} *)
+            state
+    
+    let state' = echoLoop state
+    render [block [br; text [] "Done..."; br]] state'
+
 
 let prog () =    
-(*    do! render <| block [ setAlt; clrScreen; home ]
-    let option n s =
-        block
-            [
-                text [(fg 0xff 0xb9 0x31); bold] " => "
-                text [(fg 0 0x95 0xff); uline] "Option" 
-                space
-                text [(bg 0x80 0x20 0x50); bold; (fg 0xff 0xff 0)] (sprintf "%i:" n); space 
-                text [(fg 0x5f 0xba 0x7d); (bg 25 15 85)] (sprintf "%s" s); cr        
-            ] 
 
-    do! render <|
-        block  
-            [
-                option 1 "Standalone monolyth"
-                option 2 "Web Farm deployed locally"
-                option 3 "Microservices in Nomad Cluster"            
-            ] 
-
-    // do! ProgressBar.loading()
-    
-    do! render <|
-        div [bg 0 150 10] 
-            [
-                cr
-                text [] "this sentence will have "
-                text [] "made up of two parts before the special formatting "
-                text [fg 0 0 0] "some gray, bold words "
-                text [] "right in the middle"
-                cr
-            ]
-    do! cmdLine()
-    do! render <| block [ setNoAlt ]
-    *)
-
-    let renderState = 
-        render initialRenderState [
+    let styleTest = 
+        [
             write "plain text "
             div [bg 255 255 0; fg 0 0 0] [ 
                 write "black on yellow " 
                 text [fg 50 50 255; bold] "\nblue and bold on yellow"
                 div [uline] [
-                    textLn [bg 255 0 255] "\nblue and bold on purple underlined"
-                    writeLn "blue, bold on yellow, uline"
+                    textln [bg 255 0 255] "\nblue and bold on purple underlined"
+                    writeln "blue, bold on yellow, uline"
                 ]
                 text [] " black on yellow "
             ]
@@ -154,7 +121,66 @@ let prog () =
             write "plain text"
             br
         ] 
-    renderState |> ignore
+
+    let many count cmd =
+        let rec loop acc n =
+            if n < count then 
+                loop (cmd::acc) (n+1)
+            else
+                acc
+        block (loop [] 0)
+
+    let t1 =
+        [
+            pos 1 1
+            write "HOME"; left 4
+            right 20
+            write "20"; left 2
+            down 20
+            write "20"; left 2
+            left 20 
+            write "20"; left 2
+            pos 1 35
+            writeln "Done..."
+        ]
+
+    let t2 = 
+        [
+            write "Movement test 2"
+            block ([1..20] |> List.map (fun n -> 
+                block [ pos (9+n) 20; write (sprintf "%i" n)]))
+            br
+            writeln "Done"
+        ]
+
+    let t3 =
+        let line = 
+            List.concat [
+                [block ([0..6] |> List.map (fun _ -> 
+                    write (string "1234567890"))
+                )]
+                [writeln ""]
+            ]
+        [
+            pos 0 0
+            block ([1..40] |> List.map (fun _ -> block line))
+            
+            block [ pos 1 1; text [bg 220 220 0] " "]
+            block [ pos 30 1; text [bg 220 220 0] " "]
+            block [ pos 1 30; text [bg 220 220 0] " "]
+            block [ pos 30 30; text [bg 220 220 0] " "]
+
+            block [ pos 2 2; text [bg 0 220 220] " "; left 1]
+            block [ right 29; text [bg 0 220 220] " "; left 1]
+            block [ down 29; text [bg 0 220 220] " "; left 1]
+            block [ left 29; text [bg 0 220 220] " "; left 1]
+
+            pos 41 1
+            writeln "Done..."
+        ]
+
+    render [clrScreen; block t1] initialRenderState 
+    |> cmdLine
 
 [<EntryPoint>]
 let main argv =
