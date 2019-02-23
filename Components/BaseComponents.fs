@@ -123,18 +123,6 @@ module Rendering =
         |> write.buffer
 
     let render (initialState: RenderState) (commands: RenderCmd list) : RenderState =
-(*         let applyStyle styles =
-            let newStyle = 
-                styles 
-                |> List.fold (fun cur style -> 
-                    match style with
-                    | Fg n -> { cur with Foreground = Some n}
-                    | Bg n -> { cur with Background = Some n}
-                    | Bold b -> { cur with Bold = Some b }
-                    | Underline u -> { cur with Underline = Some u }
-                ) Style.init
-            writeStyles newStyle
-            newStyle *)
 
         let rec renderStep state cmd =
             match cmd with
@@ -158,8 +146,7 @@ module Rendering =
                     if weHadStyles then
                         renderStep state (RenderCmd.Style styles)
                     else state
-                let stateAfterContent = content |> List.fold(renderStep) stateAfterStyles
-
+                let stateAfterContent = content |> List.fold(renderStep) stateAfterStyles 
                 // after rendering, check to see if we should restore a style
                 match stateAfterContent.StyleStack with
                 | _::prev::rest when weHadStyles ->
