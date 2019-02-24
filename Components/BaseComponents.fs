@@ -1,6 +1,4 @@
 namespace Fons
-open System
-open System.Reflection.Metadata.Ecma335
 
 module OutCommands = 
 
@@ -29,8 +27,8 @@ module OutCommands =
             | Underline -> enc.code "4m"
 
     type MovementCmd = 
-    | PageHome  // upper left of page - [H
-    | NextLine       // move to the next line - [E
+    | PageHome          // upper left of page -     [H
+    | NextLine          // move to the next line -  [E
     | Pos of row:int * col:int // move to abs position row height - [line;colH 
     | ScrollUp          // Scroll window up -       D
     | ScrollDown        // Scroll window down -     M
@@ -66,7 +64,6 @@ module OutCommands =
 
 module Internal =
     open OutCommands
-    open LowLevel
 
     type RenderState = {
         StyleStack: StyleSetting list list
@@ -108,10 +105,10 @@ module Rendering =
                 write.buffer <| enc.code "?47l"
                 state
             | RenderCmd.Term SaveExcursion ->
-                write.buffer <| enc.code "s" 
+                write.buffer <| enc.codeNoBracket "7" 
                 state
             | RenderCmd.Term RestoreExcursion ->
-                write.buffer <| enc.code "u"
+                write.buffer <| enc.codeNoBracket "8"
                 state
 
             | RenderCmd.Clear ToStartOfLine ->
@@ -223,8 +220,7 @@ module Components =
     let bold = Bold 
     let uline = Underline 
     
-    let text styles content =
-        RenderCmd.Container(styles, [RenderCmd.Text content])
+    let text styles content =RenderCmd.Container(styles, [RenderCmd.Text content])
         
     let textln styles content = 
         text styles (content + "\n")
@@ -284,7 +280,3 @@ module Components =
     let saveExcursion = RenderCmd.Term SaveExcursion
 
     let restoreExcursion = RenderCmd.Term RestoreExcursion
-
-    /// Get the current cursor position. Look for current position in the
-    /// input stream as EscLine;Column;Row
-    // let getCursorPos = enc.code "6n"
