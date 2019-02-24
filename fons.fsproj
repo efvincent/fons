@@ -8,6 +8,7 @@
     <Compile Include="Color.fs" />
     <Compile Include="Components/BaseComponents.fs" />
     <Compile Include="Components/ProgressBar.fs" />
+    <Compile Include="cli.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 </Project>
