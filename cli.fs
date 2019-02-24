@@ -32,19 +32,7 @@ module KeyPatterns =
 module cli = 
     open KeyPatterns
 
-    let cmdLine state = 
-        let prompt = 
-            block
-                [
-                    space
-                    text [fg 0 0 255] "FlightDeck"
-                    text [fg 220 220 20] "@"
-                    text [fg 250 100 100] "PROD"
-                    space
-                    text [fg 100 100 100] "$"
-                    space
-                ]
-        let idxoffset = 19
+    let cmdLine getPrompt getPromptOffset state = 
 
         let rec loop state idx (sb:StringBuilder) =
             let content = 
@@ -52,10 +40,10 @@ module cli =
                     [
                         clrLine
                         left 1000
-                        prompt
+                        (getPrompt())
                         text [] (sb.ToString())
                         left 1000
-                        right (idx + idxoffset)
+                        right (idx + (getPromptOffset()))
                     ]
             let state' = render [content] state
             let ki = Console.ReadKey true
@@ -66,9 +54,9 @@ module cli =
                 let s = string sb
                 sb.Clear() |> ignore
                 Some s
-            | Printable c -> loop state (idx + 1) (sb.Insert(idx,c))
-            | Arrow Left ->  loop state (max 0 (idx - 1)) sb
-            | Arrow Right -> loop state (min (sb.Length) (idx + 1)) sb
+            | Printable c -> loop state' (idx + 1) (sb.Insert(idx,c))
+            | Arrow Left ->  loop state' (max 0 (idx - 1)) sb
+            | Arrow Right -> loop state' (min (sb.Length) (idx + 1)) sb
 
             | BS ->
                 let idx' =
@@ -77,9 +65,9 @@ module cli =
                         idx - 1
                     else
                         idx
-                loop state idx' sb
+                loop state' idx' sb
             | _ -> 
-                loop state idx sb
+                loop state' idx sb
         
         let echoPrompt =
             block
@@ -90,8 +78,8 @@ module cli =
                     text [fg 0xf0 0xff 0x20; bold] ">>>"
                     space
                 ]
+        let sb = new StringBuilder(1000)
         let rec echoLoop state =
-            let sb = new StringBuilder(1000)
             match loop state 0 sb with
             | Some s when s.Length > 0 -> 
                 let state' = render [block [br; br; echoPrompt; text [(fg 180 180 20)] s; br; br]] state
