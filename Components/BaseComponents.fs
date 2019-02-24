@@ -283,7 +283,7 @@ module Components =
 
     let saveExcursion = RenderCmd.Term SaveExcursion
 
-    let RestoreExcursion = RenderCmd.Term RestoreExcursion
+    let restoreExcursion = RenderCmd.Term RestoreExcursion
 
     /// Get the current cursor position. Look for current position in the
     /// input stream as EscLine;Column;Row

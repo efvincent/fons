@@ -32,32 +32,36 @@ module KeyPatterns =
 module cli = 
     open KeyPatterns
 
-    let cmdLine state = 
-        let prompt = 
-            block
-                [
-                    space
-                    text [fg 0 0 255] "FlightDeck"
-                    text [fg 220 220 20] "@"
-                    text [fg 250 100 100] "PROD"
-                    space
-                    text [fg 100 100 100] "$"
-                    space
-                ]
-        let idxoffset = 19
+    let getPos () = Console.CursorTop, Console.CursorLeft
 
+    let cmdLine getPrompt state = 
+        
         let rec loop state idx (sb:StringBuilder) =
             let content = 
-                block
-                    [
-                        clrLine
-                        left 1000
-                        prompt
-                        text [] (sb.ToString())
-                        left 1000
-                        right (idx + idxoffset)
+                let r,c = getPos ()
+                block [
+                    saveExcursion
+                    div [bg 0 0x65 0xb3] [
+                        pos 1 1
+                        clrLineToEnd
+                        write (new String(' ', Console.WindowWidth))
+                        pos 1 1
+                        text [fg 255 255 255] " row:"
+                        text [fg 255 255 0; bold] (sprintf "%03i" r)
+                        text [fg 255 255 255] " col:"
+                        text [fg 255 255 0; bold] (sprintf "%03i" c)
+                        text [fg 255 255 255] " len:"
+                        text [fg 255 128 0; bold] (sprintf "%03i" sb.Length)
+                        write " | climode --INSERT--"
                     ]
-            let state' = render [content] state
+                    restoreExcursion
+                    clrLine
+                    left c
+                    (getPrompt())
+                    text [] (sb.ToString())
+                ]
+            let idxAdj = block [ if sb.Length = idx then () else yield left (sb.Length - idx)]
+            let state' = render [content; idxAdj] state
             let ki = Console.ReadKey true
             
             match ki with
@@ -66,9 +70,9 @@ module cli =
                 let s = string sb
                 sb.Clear() |> ignore
                 Some s
-            | Printable c -> loop state (idx + 1) (sb.Insert(idx,c))
-            | Arrow Left ->  loop state (max 0 (idx - 1)) sb
-            | Arrow Right -> loop state (min (sb.Length) (idx + 1)) sb
+            | Printable c -> loop state' (idx + 1) (sb.Insert(idx,c))
+            | Arrow Left ->  loop state' (max 0 (idx - 1)) sb
+            | Arrow Right -> loop state' (min (sb.Length) (idx + 1)) sb
 
             | BS ->
                 let idx' =
@@ -77,9 +81,9 @@ module cli =
                         idx - 1
                     else
                         idx
-                loop state idx' sb
+                loop state' idx' sb
             | _ -> 
-                loop state idx sb
+                loop state' idx sb
         
         let echoPrompt =
             block
@@ -90,8 +94,8 @@ module cli =
                     text [fg 0xf0 0xff 0x20; bold] ">>>"
                     space
                 ]
+        let sb = new StringBuilder(1000)
         let rec echoLoop state =
-            let sb = new StringBuilder(1000)
             match loop state 0 sb with
             | Some s when s.Length > 0 -> 
                 let state' = render [block [br; br; echoPrompt; text [(fg 180 180 20)] s; br; br]] state

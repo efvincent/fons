@@ -98,14 +98,32 @@ let prog () =
             )
         ]
 
-    render [saveExcursion; switchToAlt; clrScreen] initialRenderState
+    let gp () =
+        let curTime = System.DateTime.Now
+        block
+            [
+                space
+                text [fg 0 0 255] "FlightDeck"
+                text [fg 220 220 20] "["
+                text [fg 250 100 100] (sprintf "%02i:%02i:%02i" curTime.Hour curTime.Minute curTime.Second)
+                text [fg 220 220 20] "]"
+                space
+                text [fg 100 100 100] "$"
+                space
+            ]
+
+    let sW = Console.WindowWidth
+    let sH = Console.WindowHeight
+    
+    render [switchToAlt; clrScreen; pos 3 1] initialRenderState
+    |> cmdLine gp
     |> render [
+        box [bg 80 80 0] [bg 0 50 50] 1 1 (sH-2) sW   
         box [bg 120 120 120] [bg 0 80 80] 10 20 10 50
         box [bg 220 220 220] [bg 80 0 80] 15 25 15 60
-        pos 55 1
-        writeln "Done..."]
-    |> cmdLine
-    |> render [switchToMain; RestoreExcursion]
+        pos sH 1]
+    |> cmdLine gp
+    |> render [switchToMain]
 
 [<EntryPoint>]
 let main argv =
