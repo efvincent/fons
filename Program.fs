@@ -2,7 +2,6 @@
 open Components
 open Fons.cli
 open System
-open System
 
 let prog () =    
 
