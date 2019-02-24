@@ -39,20 +39,18 @@ module cli =
         let rec loop state idx (sb:StringBuilder) =
             let content = 
                 let r,c = getPos ()
+                let field lbl txt = block [ write lbl; text [fg 200 200 0; bold] txt ]
                 block [
                     saveExcursion
-                    div [bg 0 0x65 0xb3] [
+                    div [bg 0x08 0x79 0xc9; fg 200 200 200] [
                         pos 1 1
                         clrLineToEnd
-                        write (new String(' ', Console.WindowWidth))
+                        write (new string(' ', Console.WindowWidth))
                         pos 1 1
-                        text [fg 255 255 255] " row:"
-                        text [fg 255 255 0; bold] (sprintf "%03i" r)
-                        text [fg 255 255 255] " col:"
-                        text [fg 255 255 0; bold] (sprintf "%03i" c)
-                        text [fg 255 255 255] " len:"
-                        text [fg 255 128 0; bold] (sprintf "%03i" sb.Length)
-                        write " | climode --INSERT--"
+                        (field " row:" (sprintf "%03i" r))
+                        (field " col:" (sprintf "%03i" c))
+                        (field " len:" (sprintf "%03i" sb.Length))
+                        write " | climode --insert--"
                     ]
                     restoreExcursion
                     clrLine
