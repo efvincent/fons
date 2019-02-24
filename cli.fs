@@ -32,20 +32,36 @@ module KeyPatterns =
 module cli = 
     open KeyPatterns
 
-    let cmdLine getPrompt getPromptOffset state = 
+    let getPos () = Console.CursorTop, Console.CursorLeft
 
+    let cmdLine getPrompt state = 
+        
         let rec loop state idx (sb:StringBuilder) =
             let content = 
-                block
-                    [
-                        clrLine
-                        left 1000
-                        (getPrompt())
-                        text [] (sb.ToString())
-                        left 1000
-                        right (idx + (getPromptOffset()))
+                let r,c = getPos ()
+                block [
+                    saveExcursion
+                    div [bg 0 0x65 0xb3] [
+                        pos 1 1
+                        clrLineToEnd
+                        write (new String(' ', Console.WindowWidth))
+                        pos 1 1
+                        text [fg 255 255 255] " row:"
+                        text [fg 255 255 0; bold] (sprintf "%03i" r)
+                        text [fg 255 255 255] " col:"
+                        text [fg 255 255 0; bold] (sprintf "%03i" c)
+                        text [fg 255 255 255] " len:"
+                        text [fg 255 128 0; bold] (sprintf "%03i" sb.Length)
+                        write " | climode --INSERT--"
                     ]
-            let state' = render [content] state
+                    restoreExcursion
+                    clrLine
+                    left c
+                    (getPrompt())
+                    text [] (sb.ToString())
+                ]
+            let idxAdj = block [ if sb.Length = idx then () else yield left (sb.Length - idx)]
+            let state' = render [content; idxAdj] state
             let ki = Console.ReadKey true
             
             match ki with

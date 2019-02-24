@@ -113,19 +113,18 @@ let prog () =
                 space
             ]
 
-    let gpo () = 24
     let sW = Console.WindowWidth
     let sH = Console.WindowHeight
-    render [saveExcursion; switchToAlt; clrScreen; home] initialRenderState
-    |> cmdLine gp gpo
+    
+    render [switchToAlt; clrScreen; pos 3 1] initialRenderState
+    |> cmdLine gp
     |> render [
         box [bg 80 80 0] [bg 0 50 50] 1 1 (sH-2) sW   
         box [bg 120 120 120] [bg 0 80 80] 10 20 10 50
         box [bg 220 220 220] [bg 80 0 80] 15 25 15 60
-        pos (sH-1) 1
-        writeln "Done..."]
-    |> cmdLine gp gpo
-    |> render [switchToMain; RestoreExcursion]
+        pos sH 1]
+    |> cmdLine gp
+    |> render [switchToMain]
 
 [<EntryPoint>]
 let main argv =
