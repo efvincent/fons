@@ -9,6 +9,7 @@
 *.userosscache
 *.sln.docstates
 **/launchSettings.json
+.ionide
 
 # JetBrains Rider
 .idea/
