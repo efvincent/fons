@@ -1,0 +1,17 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "fons", "fons.fsproj", "{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
