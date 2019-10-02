@@ -29,6 +29,7 @@ bld/
 _[Pp]ublish/
 log/
 logs/
+.ionide/
 
 # Visual Studio 2015 cache/options directory
 .vs/
