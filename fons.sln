@@ -1,6 +1,11 @@
 
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".paket", ".paket", "{B2A256BD-9D87-4E6C-B8AB-5A920A6A48DF}"
+	ProjectSection(SolutionItems) = preProject
+		paket.dependencies = paket.dependencies
+	EndProjectSection
+EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "fons", "fons.fsproj", "{5177BDFC-0F5E-4B4B-B695-E56ACA58685B}"
 EndProject
 Global
