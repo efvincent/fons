@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -7,15 +6,11 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DefineConstants>TRACE;DEBUG;NETCOREAPP;NETCOREAPP3_0</DefineConstants>
   </PropertyGroup>
+  
   <ItemGroup>
-    <Compile Include="LowLevel.fs" />
-    <Compile Include="Color.fs" />
-    <Compile Include="Components/BaseComponents.fs" />
-    <Compile Include="Components/ProgressBar.fs" />
-    <Compile Include="cli.fs" />
+    
     <Compile Include="examples.fs" />
     <Compile Include="interact.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-  <Import Project=".paket\Paket.Restore.targets" />
 </Project>
