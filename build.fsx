@@ -1,6 +1,6 @@
 #r "paket:
 nuget FSharp.Core
-nuget Fake.DotNet.MSBuild
+nuget Fake.DotNet.Cli
 nuget Fake.IO.Filesystem
 nuget Fake.Core.Target //"
 
@@ -19,10 +19,7 @@ Target.create "Clean" (fun _ ->
 
 Target.create "Build" (fun _ ->
     Trace.log " --- Building the Library --- "
-    !! "src/**/*.fsproj"
-    |> MSBuild.runRelease id buildDir "Build"
-    |> Trace.logItems "AppBuild output:"
-
+    DotNet.build id "src/fons.fsproj"    
 )
 
 Target.create "Deploy" (fun _ ->
