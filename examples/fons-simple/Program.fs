@@ -13,7 +13,7 @@ let prog () =
         block (loop [] 0)
 
     let getCmdLinePrompt () =
-        let curTime = System.DateTime.Now
+        let curTime = DateTime.Now
         block
             [
                 space

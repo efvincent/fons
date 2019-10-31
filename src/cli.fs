@@ -34,7 +34,7 @@ module cli =
     open KeyPatterns
     open Internal
 
-    /// Defines the result of processing the input from the cmmand line. Each time the user pressed enter and submits
+    /// Defines the result of processing the input from the command line. Each time the user pressed enter and submits
     /// a command, the cmdProcssor is called and should return this result, indicating if the command line should continue,
     /// and if it is to continue, passing the render state which would account for rendering done by the cmdProcessor.
     type CmdProcessorResult = {
@@ -101,7 +101,7 @@ module cli =
             | _ -> 
                 readKeyLoop state' idx sb
         
-        let sb = new StringBuilder(1000)
+        let sb = StringBuilder(1000)
         let rec responseProcessor state =
             match readKeyLoop state 0 sb with
             | Some s when s.Length > 0 -> 
