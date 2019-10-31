@@ -3,4 +3,4 @@ solution: fons.sln
 mono: none
 dotnet: 3.0.100
 script:
-  - dotnet restore
+  - dotnet fake run build.fsx
