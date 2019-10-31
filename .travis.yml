@@ -1,6 +1,0 @@
-language: csharp
-solution: fons.sln
-mono: none
-dotnet: 3.0.100
-script:
-  - ./build.sh
