@@ -13,5 +13,7 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 3.0.100
-    - name: Build shell script
-      run: ./build.sh
+    - name: Install
+      run: dotnet install
+    - name: Run fake script
+      run: dotnet fake run build.fsx
