@@ -9,7 +9,8 @@ open Fake.DotNet
 open Fake.IO
 open Fake.IO.Globbing.Operators
 
-let buildDir = "./src/bin"
+// Properties
+let buildDir = "./build"
 
 // ** Define Targets
 Target.create "Clean" (fun _ ->
@@ -18,8 +19,9 @@ Target.create "Clean" (fun _ ->
 )
 
 Target.create "Build" (fun _ ->
-    Trace.log " --- Building the Library --- "
-    DotNet.build id "src/fons.fsproj"    
+    !! "src/**/*.fsproj"
+    |> MSBuild.runRelease (fun bp -> {bp with Properties = [("version", "0.0.3")]}) buildDir "Build"
+    |> Trace.logItems "AppBuild-Output: " 
 )
 
 Target.create "Deploy" (fun _ ->
