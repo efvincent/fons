@@ -3,7 +3,8 @@ open Components
 open Fons.cli
 open System
 
-let prog () =    
+let prog () =   
+    let ver = System.Reflection.Assembly.GetEntryAssembly().GetName().Version 
     let many count cmd =
         let rec loop acc n =
             if n < count then 
@@ -51,7 +52,7 @@ let prog () =
             block
                 [
                     space
-                    text [fg 0x7a 0x6f 0xfa; bold] "echo"
+                    text [fg 0x7a 0x6f 0xfa; bold] (sprintf "echo v%s" (string ver))
                     space
                     text [fg 0xf0 0xff 0x20; bold] ">>>"
                     space
