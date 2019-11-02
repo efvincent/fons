@@ -7,10 +7,23 @@ nuget Fake.Core.Target //"
 open Fake.Core
 open Fake.DotNet
 open Fake.IO
+open Fake.IO.FileSystemOperators
 open Fake.IO.Globbing.Operators
 
 // Properties
 let buildDir = "./build"
+
+let setMsBuildParams (defaults: MSBuildParams) =
+    { defaults with
+        Verbosity = Some(Quiet)
+        Targets = ["Build"]
+        Properties =
+        [
+            "Optimize", "True"
+            "DebugSymbols", "True"
+            "Configuration", "Release"
+        ]
+    }
 
 // ** Define Targets
 Target.create "Clean" (fun _ ->
@@ -19,9 +32,9 @@ Target.create "Clean" (fun _ ->
 )
 
 Target.create "Build" (fun _ ->
-    !! "src/**/*.fsproj"
-    |> MSBuild.runRelease (fun bp -> {bp with Properties = [("version", "0.0.3")]}) buildDir "Build"
-    |> Trace.logItems "AppBuild-Output: " 
+    !! "./src/fons.sln"
+    |> MSBuild.runRelease setMsBuildParams buildDir "Build"
+    |> Trace.logItems "AppBuild Output: "
 )
 
 Target.create "Deploy" (fun _ ->
