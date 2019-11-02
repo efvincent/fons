@@ -3,6 +3,12 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
+  <PropertyGroup>
+    <!-- 
+    Turns off automatic AssemblyInfo generation
+    -->
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>  
   <ItemGroup>
     <Compile Include="LowLevel.fs" />
     <Compile Include="Color.fs" />
@@ -10,5 +16,5 @@
     <Compile Include="Components/ProgressBar.fs" />
     <Compile Include="cli.fs" />
   </ItemGroup>
-  <Import Project="..\.paket\Paket.Restore.targets" />
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
