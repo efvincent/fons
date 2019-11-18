@@ -42,6 +42,7 @@ module cli =
         ExitCLI: bool
     }
 
+    /// Returns a tuple of Top, Left of the cursor postion
     let getPos () = Console.CursorTop, Console.CursorLeft
 
     /// Main command loop. Accepts functions for returning the current prompt as a RenderCmd, a command processor
