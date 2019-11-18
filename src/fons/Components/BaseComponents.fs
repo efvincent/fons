@@ -172,7 +172,7 @@ module Rendering =
                 state
 
             | RenderCmd.Container (styles, content) ->
-                let weHadStyles = styles |> List.length > 0
+                let weHadStyles = not (List.isEmpty styles)
                 let stateAfterStyles = 
                     if weHadStyles then
                         renderStep state (RenderCmd.Style styles)
