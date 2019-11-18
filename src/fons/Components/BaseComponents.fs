@@ -187,7 +187,7 @@ module Rendering =
                     write.buffer <| enc.code "0m"
                     if prev <> [] then writeStyles prev
                     { stateAfterContent with StyleStack = prev::rest }
-                | _::[] when weHadStyles -> 
+                | [_] when weHadStyles -> 
                     // there was nothing before ours. We can return empty and restore 
                     // a blanks style
                     write.buffer <| enc.code "0m"
