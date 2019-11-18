@@ -1,7 +1,7 @@
 namespace Fons
 
-
 [<RequireQualifiedAccess>]
+/// Terminal color utilities
 module Color =
     let private d = [|0; 95; 135; 175; 215; 255|]
     let private a = 
@@ -12,10 +12,13 @@ module Color =
                 let v = n * 10 - 2152
                 [|v; v; v|])
 
+    /// Converts red, green, and blue bytes into the nearest terminal color code
     let convToXTerm r g b = 
       a 
-      |> Array.map (Array.zip [|r;g;b|])
-      |> Array.map (fun tups -> tups |> Array.map(fun (v1,v2) -> abs(v1-v2)) |> Array.reduce (+))
+      |> Array.map (
+          Array.zip [|r;g;b|]
+          >> (fun tups -> tups |> Array.map(fun (v1,v2) -> abs(v1-v2)) |> Array.reduce (+))
+      )
       |> Array.fold 
         (fun (idxMin,vMin,idxCur) vCur -> if vCur <= vMin then (idxCur,vCur,idxCur+1) else (idxMin,vMin,idxCur+1)) 
         (-1,257,0)
