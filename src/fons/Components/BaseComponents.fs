@@ -94,6 +94,9 @@ module Rendering =
         |> Array.concat
         |> write.buffer
 
+    /// Renders a list of render commands. Takes a render state and
+    /// returns an updated state after the render. At this time render
+    /// state only manages the style stack 
     let render (commands: RenderCmd list) (initialState: RenderState) : RenderState =
 
         let rec renderStep state cmd =
@@ -212,29 +215,49 @@ module Components =
     open OutCommands
 
     let initialRenderState = Internal.RenderState.init
+
+    /// Renders a list of render commands. Takes a render state and
+    /// returns an updated state after the render. At this time render
+    /// state only manages the style stack
     let render = Rendering.render
     
+    /// Set the foreground to nearest available terminal color to the specified r g b color
     let fg r g b = Fg(RGB(r,g,b))
+
+    /// Set the background to nearest available terminal color to the specified r g b color
     let bg r g b = Bg(RGB(r,g,b))
 
+    /// set the bold style, active until styles are cleared
     let bold = Bold 
+
+    /// set the underline style, active until styles are cleared
     let uline = Underline 
     
+    /// sets the style then writes the text. It does so in a container so after
+    /// the text is written the style is restored
     let text styles content =RenderCmd.Container(styles, [RenderCmd.Text content])
         
+    /// sets the style then writes the text followed by a carriage return. 
+    /// It does so in a container so after the text is written the style is restored.
     let textln styles content = 
         text styles (content + "\n")
 
+    /// Writes the text without style
     let write content = text [] content
 
+    /// writes the text and a carriage return without the style
     let writeln content = textln [] content
 
+    /// writes a carriage return
     let br = writeln ""
 
+    /// writes a space
     let space = write " "
 
+    /// writes a block of content
     let block content = RenderCmd.Container([], content)
 
+    /// sets a style then writes the block of content
     let div styles content = RenderCmd.Container(styles, content)
 
     (*
