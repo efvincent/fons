@@ -4,6 +4,7 @@ module OutCommands =
 
     open LowLevel
 
+    /// Represents a character color
     type ColorValue =
     | RGB of R:int * G:int * B:int
     | XTerm256 of int
@@ -13,6 +14,7 @@ module OutCommands =
             | RGB(r,g,b) -> Color.convToXTerm r g b
             | XTerm256 n -> n
 
+    /// Commands that change the color, bold, or underline of the text
     type StyleSetting =
     | Fg of ColorValue
     | Bg of ColorValue
@@ -26,6 +28,7 @@ module OutCommands =
             | Bold -> enc.code "1m"
             | Underline -> enc.code "4m"
 
+    /// Commands that move the cursor
     type MovementCmd = 
     | PageHome          // upper left of page -     [H
     | NextLine          // move to the next line -  [E
@@ -37,6 +40,7 @@ module OutCommands =
     | Right of int      // Move right n positions - [C
     | Left of int       // Move left n postitions - [D
 
+    /// Commands that delete characters
     type ClearCmd =
     | ToStartOfLine
     | ToEndOfLine
@@ -45,6 +49,7 @@ module OutCommands =
     | ToEndOfScreen
     | Screen
 
+    /// Terminal level commands
     type TerminalCmd =
     | SwitchToAltBuffer
     | SwitchToMainBuffer
@@ -52,6 +57,8 @@ module OutCommands =
     | RestoreExcursion
     
     [<RequireQualifiedAccess>]
+    /// The differnet types of render command that can be composed together and
+    /// sent to the renderer.
     type RenderCmd =
     | Term of TerminalCmd
     | Style of StyleSetting list
@@ -175,7 +182,7 @@ module Rendering =
                 state
 
             | RenderCmd.Container (styles, content) ->
-                let weHadStyles = styles |> List.length > 0
+                let weHadStyles = not (List.isEmpty styles)
                 let stateAfterStyles = 
                     if weHadStyles then
                         renderStep state (RenderCmd.Style styles)
@@ -190,7 +197,7 @@ module Rendering =
                     write.buffer <| enc.code "0m"
                     if prev <> [] then writeStyles prev
                     { stateAfterContent with StyleStack = prev::rest }
-                | _::[] when weHadStyles -> 
+                | [_] when weHadStyles -> 
                     // there was nothing before ours. We can return empty and restore 
                     // a blanks style
                     write.buffer <| enc.code "0m"
