@@ -221,6 +221,7 @@ module Components =
 
     open OutCommands
 
+    /// An empty initial render state
     let initialRenderState = Internal.RenderState.init
 
     /// Renders a list of render commands. Takes a render state and
@@ -270,43 +271,70 @@ module Components =
     (*
         MOTION
     *)
+
+    /// Move to the 0,0 position on the page
     let home = RenderCmd.Move PageHome
 
+    /// Move down one line, keep the same column position
     let nextLine = RenderCmd.Move NextLine
 
+    /// Move to the specified row and column. Zero based
     let pos row col = RenderCmd.Move <| Pos(row,col)
 
+    /// Scroll the screen up one line
     let scrollUp = RenderCmd.Move ScrollUp
 
+    /// Scroll the screen down one line
     let scrollDown = RenderCmd.Move ScrollDown
 
+    /// Move the cursor up n lines
     let up n = RenderCmd.Move<| Up n
 
+    /// Move the cursor down n lines
     let down n =  RenderCmd.Move<| Down n
 
+    /// Move the cursor left n columns
     let left n = RenderCmd.Move <| Left n
 
+    /// Move the cursor right n columns
     let right n = RenderCmd.Move <| Right n
+    
     (*
         CLEARING / ALT SCREEN / SAVE CURSOR ATTRIBUTES
     *)
 
+    /// Clears the entire line. Does not change cursor position
     let clrLine = RenderCmd.Clear Line
    
+    /// Clears from the current cursor position to the start of the line.
+    /// Cursor position does not change.
     let clrLineToStart = RenderCmd.Clear ToStartOfLine
 
+    /// Clears from the current cursor position to the end of the line.
+    /// Cursor position does not change.
     let clrLineToEnd = RenderCmd.Clear ToEndOfLine
 
+    /// Clears the entire screen. Cursor position does not change
     let clrScreen = RenderCmd.Clear Screen
 
+    /// Clears from the current cursor position to the end of the screen.
+    /// Cursor position does not change.
     let clrScreenToEnd = RenderCmd.Clear ToEndOfScreen
 
+    /// Clears from the current cursor position to the start of the screen.
+    /// Cursor position does not change.
     let clrScreenToStart = RenderCmd.Clear ToStartOfScreen
 
+    /// Switch to alternate screen buffer
     let switchToAlt = RenderCmd.Term SwitchToAltBuffer
 
+    /// Switch to the main screen buffer
     let switchToMain = RenderCmd.Term SwitchToMainBuffer
 
+    /// Save the current state of the screen for later restoration. Typically 
+    /// done at the start of the program.
     let saveExcursion = RenderCmd.Term SaveExcursion
 
+    /// Restore the saved excursion. Typically done at the end of the program
+    /// to restore the screen to the state it was in before the program started.
     let restoreExcursion = RenderCmd.Term RestoreExcursion
